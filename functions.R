@@ -1,7 +1,7 @@
 ######## [START] Packages requirements ########
 
 ##### Add here the packages needed #############################################
-packagesNeeded <- c("jsonlite")
+packagesNeeded <- c("jsonlite", "dplyr")
 ################################################################################
 
 installedPackages <- installed.packages()
@@ -136,14 +136,89 @@ getAssets <- function(assets = "All") {
 }
 
 # Test of the function
-krakenAssets <- getAssets()
-krakenAssets <- getAssets(assets = c("BTC", "AAVE", "ADA"))
+krakenAllAssets <- getAssets()
+krakenSomeAssets <- getAssets(assets = c("BTC", "AAVE", "ADA"))
 
 ########## [END] Assets ##########
 
 ########## [START] Assets Pairs ##########
 
-#### Edit - Multiple assets get all to send only one request ?
+getPairs <- function(pairs = "All") {
+  # Variables definition
+  result <- NULL
+  x <- 1
+  # Check pairs
+  if (pairs[1] == "All") {
+    # Kraken API
+    url <- "https://api.kraken.com/0/public/AssetPairs"
+    # Get data
+    jsonFile <- jsonlite::fromJSON(url)
+    # Error check
+    if (length(jsonFile[["error"]]) > 0) {
+      print(jsonFile[["error"]])
+      stop()
+    } else {
+      # List of all assets
+      pairsList <- unlist(names(jsonFile[["result"]]))
+      # Format data
+      for (i in pairsList) {
+        # Dark pools have a smaller amount of rows, add missing ones with NA 
+        if (nrow(as.matrix(jsonFile[["result"]][[i]])) < nrow(as.matrix(jsonFile[["result"]][[1]]))) {
+          diff <- dplyr::setdiff(names(jsonFile[["result"]][[1]]), names(jsonFile[["result"]][[i]]))
+          addMissing <- matrix(data = NA, nrow = length(diff), ncol = 1)
+          rownames(addMissing) <- diff
+          x<-order(match(names(jsonFile[["result"]][[1]]), table = diff))
+          y<-x[1:length(diff)]
+          for (j in 1:length(y)) {
+            row <- append(jsonFile[["result"]][[i]], NA, after = y[j]-1)
+          }
+          result <- cbind(result, row)
+        } else {
+          result <- cbind(result, as.matrix(jsonFile[["result"]][[i]]))
+          colnames(result)[x] <- i
+        }
+        x <- x+1
+      }
+    }
+  }
+  return(as.data.frame(result))
+}
+
+krakenAllPairs <- getPairs()
+
+
+mat= matrix(data=1:15, nrow = 15, ncol = 1)
+for (j in 1:length(y)) {
+  append(mat, NA, after = 2)
+}
+
+  
+  # Data loop
+  for (i in pairs) {
+    x <- x+1
+    ## Kraken API
+    url <- paste("https://api.kraken.com/0/public/AssetPairs?pair=", i, sep = "")
+    ## Get data
+    jsonFile <- jsonlite::fromJSON(url)
+    ## Error check
+    if (length(jsonFile[["error"]]) > 0) {
+      print(jsonFile[["error"]])
+      stop()
+    } else {
+      result <- cbind(result, as.matrix(jsonFile[["result"]][[1]]))
+      colnames(result)[x] <- i
+    }
+  }
+  # Return results
+  return(as.data.frame(result))
+}
+
+# Test of the function
+krakenPairs <- getPairs(pairs = c("BTCEUR", "ADAEUR"))
+
+
+
+
 
 getPairs <- function(pairs = "BTCEUR") {
   # Variables definition
